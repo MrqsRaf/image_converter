@@ -1,7 +1,7 @@
 # image_converter
 Python code using Pillow to convert images to other formats
 
-'''
+```
 FORMATS_SUPPORTED = [
     "All",  # Will choose all formats below
     "JPEG",       # Joint Photographic Experts Group (JPEG/JPG)
@@ -24,4 +24,4 @@ FORMATS_SUPPORTED = [
     "TGA",        # Truevision Targa Image
     "MSP",        # MSP Image Format
 ]
-'''
+``` 
