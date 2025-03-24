@@ -48,7 +48,6 @@ FORMATS_SUPPORTED = [
     "DDS",        # DirectDraw Surface
     "ICNS",       # Macos icons format
     "DIB",        # Device Independent Bitmap
-    "PFM",        # Portable FloatMap
     "PPM",        # Portable Pixmap (PGM, PBM, PNM)
     "XBM",        # X11 Bitmap
     "PALM",       # Palm Pixmap Format (used on Palm OS devices)
