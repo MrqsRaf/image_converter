@@ -199,7 +199,8 @@ def convert_images(source_dir, by_image_organization, mapping_dict):
         '''
         mode = image.mode
         print(
-            f' Cannot convert {file} because it is in {mode}, converting to RGB/RGBA format to maximize chances')
+            f' Cannot convert {file} because it is in {mode}, '
+            f'converting to RGB/RGBA format to maximize chances')
         if mode == 'RGBA':
             image = image.convert('RGB')
         elif image.mode == 'RGB':
@@ -221,9 +222,9 @@ def convert_images(source_dir, by_image_organization, mapping_dict):
         return
 
     convert_path = mapping_dict.get("convert_parent_path")
-    for file, values in mapping_dict["files"].items():
-        dir_destination = values.get("dir_destination")
-        file_stem = values.get("file_stem")
+    for file, file_values in mapping_dict["files"].items():
+        dir_destination = file_values.get("dir_destination")
+        file_stem = file_values.get("file_stem")
 
         print(f'CONVERTING {file}...')
 
@@ -231,7 +232,7 @@ def convert_images(source_dir, by_image_organization, mapping_dict):
         try:
             image = Image.open(f'{source_dir}/{file}')
         except UnidentifiedImageError as e:
-            print(f'{file_stem} is not an image, skipping... {e}')
+            print(f'{file_values.get("file_stem")} is not an image, skipping... {e}')
             continue
 
         # save new img with new extension choosen
