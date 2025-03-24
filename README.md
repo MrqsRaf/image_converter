@@ -54,17 +54,17 @@ python image_converter.py
 
 # Setup choices
 
-The first question asks how you want to organize your converted images
-By image: Creates a directory per image and places all the desired converted formats in it
-By format: Creates a directory per format and places each converted image in the corresponding format inside
+The first question asks how you want to organize your converted images  
+- By image: Creates a directory per image and places all the desired converted formats in it
+- By format: Creates a directory per format and places each converted image in the corresponding format inside
 ```
 ? How do you want your directories organization ?  (Use arrow keys)
  » By image
    By format
 ```
 
-Select in what formats you want to convert your images
-:warning: Selecting "All" will convert each images to 19 formats
+Select in what formats you want to convert your images  
+⚠️ Selecting "All" will convert each images to 19 formats
 
 ```
 ? Select the formats  (Use arrow keys to move, <space> to select, <a> to toggle, <i> to invert)
@@ -84,8 +84,8 @@ Confirm your choices, select no to go back
    no
 ```
 
-You can select a whole directory, and it will convert all the images in it
-You can select files one by one, using CTRL+click to select multiple files in the same directory
+- You can select a whole directory, and it will convert all the images in it
+- You can select files one by one, using CTRL+click to select multiple files in the same directory
 ```
 ? How to select files (Use arrow keys)
  » Selecting file by file
