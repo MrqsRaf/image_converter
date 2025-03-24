@@ -193,14 +193,28 @@ def convert_images(source_dir, by_image_organization, mapping_dict):
         convert in RGB or RGBA if image.save fails only
     """
 
-    def _convert_rgba(file, image):
+    def _convert_img_mode(file, image):
         '''
-        Convert RGBA mode to RGB to maximize chances to convert image'
+        Convert RGBA/RGB mode to maximize chances to convert'
         '''
-        if image.mode == 'RGBA':
-            print(
-                f'{file} is in RGBA mode, converting to RGB before format to maximize chances')
+        mode = image.mode
+        print(
+            f' Cannot convert {file} because it is in {mode}, converting to RGB/RGBA format to maximize chances')
+        if mode == 'RGBA':
             image = image.convert('RGB')
+        elif image.mode == 'RGB':
+            image = image.convert('RGBA')
+        return image
+
+    def _save_image(by_image_organization, image,
+                    dir_destination, file_stem, convert_format, convert_path):
+        if by_image_organization:
+            image.save(f'{dir_destination}/{file_stem}.{convert_format.lower()}',
+                       format=convert_format)
+        else:
+            image.save(
+                f'{convert_path}/{convert_format}/{file_stem}.{convert_format.lower()}',
+                format=convert_format)
 
     if not mapping_dict.get("files"):
         print("No images in directory, or already convert, skipping.")
@@ -220,23 +234,21 @@ def convert_images(source_dir, by_image_organization, mapping_dict):
             print(f'{file_stem} is not an image, skipping... {e}')
             continue
 
-        _convert_rgba(file, image)
-
         # save new img with new extension choosen
         for convert_format in mapping_dict.get("convert_to"):
             try:
-                if by_image_organization:
-                    image.save(f'{dir_destination}/{file_stem}.{convert_format.lower()}',
-                               format=convert_format)
-                else:
-                    image.save(
-                        f'{convert_path}/{convert_format}/{file_stem}.{convert_format.lower()}',
-                        format=convert_format)
-
-            except (ValueError, OSError) as e:
-                print(f'Cannot convert {file_stem} to {convert_format}: {e}')
-
-            print(f"{file_stem}.{convert_format} done.")
+                _save_image(by_image_organization, image,
+                            dir_destination, file_stem, convert_format, convert_path)
+                print(f"{file_stem}.{convert_format} done.")
+            except (ValueError, OSError):
+                try:
+                    image = _convert_img_mode(file, image)
+                    _save_image(by_image_organization, image,
+                                dir_destination, file_stem, convert_format, convert_path)
+                    print(f"{file_stem}.{convert_format} done.")
+                except (ValueError, OSError) as e:
+                    print(
+                        f'Cannot convert {file_stem} to {convert_format} neither: {e}, skipping..')
 
 
 def main():
