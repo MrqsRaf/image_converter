@@ -256,7 +256,7 @@ def create_convert_paths(images):
     return images
 
 
-def convert_images(final_map_dict):
+def images_processing(final_map_dict):
     """
     Converts all images from mapping dict
     """
@@ -275,8 +275,23 @@ def convert_images(final_map_dict):
             image = image.convert('RGBA')
         return image
 
-    def _save_image(organization, image,
-                    dir_destination, file_stem, convert_format, convert_path):
+    def _load_image(file, source_path):
+        print(f'CONVERTING {file}...')
+        # TODO: avoid this try except block by filtering non image files in convert_map
+        try:
+            image = Image.open(
+                f'{source_path}/{file}')
+        except UnidentifiedImageError as e:
+            print(
+                f'Cannot load {file}, maybe not an image ? skipping... {e}')
+        return image
+
+    def _save_image(map_dict, file_values, convert_format, image):
+        organization = map_dict.get("organization")
+        convert_path = map_dict.get("convert_parent_path")
+        dir_destination = file_values.get("dir_destination")
+        file_stem = file_values.get("file_stem")
+
         if organization == "img":
             image.save(f'{dir_destination}/{file_stem}.{convert_format}',
                        format=convert_format)
@@ -285,39 +300,33 @@ def convert_images(final_map_dict):
                 f'{convert_path}/{convert_format}/{file_stem}.{convert_format}',
                 format=convert_format)
 
+    def _convert_image(map_dict):
+        # save new img with new extension choosen
+        for file, file_values in map_dict.get("files").items():
+
+            image = _load_image(file, map_dict.get("parent_path"))
+            file_stem = file_values.get("file_stem")
+
+            for convert_format in map_dict.get("convert_to"):
+                try:
+                    _save_image(map_dict, file_values, convert_format, image)
+                    print(f"{file_stem}.{convert_format} done.")
+                except (ValueError, OSError):
+                    try:
+                        image = _convert_img_mode(file, image)
+                        _save_image(map_dict, file_values,
+                                    convert_format, image)
+                        print(f"{file_stem}.{convert_format} done.")
+                    except (ValueError, OSError) as e:
+                        print(
+                            f'Cannot convert {file_stem}'
+                            f'to {convert_format} neither: {e}, skipping..')
+
     if not final_map_dict.get("files"):
-        print("No images in directory, or already convert, skipping.")
+        print("No images in directory, skipping.")
         return
 
-    convert_path = final_map_dict.get("convert_parent_path")
-    for file, file_values in final_map_dict["files"].items():
-        dir_destination = file_values.get("dir_destination")
-        file_stem = file_values.get("file_stem")
-
-        print(f'CONVERTING {file}...')
-
-        # TODO: avoid this try except block by filtering non image files in convert_map
-        try:
-            image = Image.open(f'{final_map_dict.get("parent_path")}/{file}')
-        except UnidentifiedImageError as e:
-            print(f'{file_values.get("file_stem")} is not an image, skipping... {e}')
-            continue
-
-        # save new img with new extension choosen
-        for convert_format in final_map_dict.get("convert_to"):
-            try:
-                _save_image(final_map_dict.get("organization"), image,
-                            dir_destination, file_stem, convert_format, convert_path)
-                print(f"{file_stem}.{convert_format} done.")
-            except (ValueError, OSError):
-                try:
-                    image = _convert_img_mode(file, image)
-                    _save_image(final_map_dict.get("organization"), image,
-                                dir_destination, file_stem, convert_format, convert_path)
-                    print(f"{file_stem}.{convert_format} done.")
-                except (ValueError, OSError) as e:
-                    print(
-                        f'Cannot convert {file_stem} to {convert_format} neither: {e}, skipping..')
+    _convert_image(final_map_dict)
 
 
 def main():
@@ -343,7 +352,7 @@ def main():
         ask_select_source,
         img_to_convert,
         create_convert_paths,
-        convert_images
+        images_processing
     )
 
     print("all images done.")
