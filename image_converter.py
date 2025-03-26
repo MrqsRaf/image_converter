@@ -1,4 +1,5 @@
 import os
+import shutil
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, UnidentifiedImageError
@@ -228,8 +229,6 @@ def create_convert_paths(images):
         to convert_map["files"][file]
     else:
         Adds desination parent path with form Path/convert/ to convert_map
-
-    Args:
     """
 
     def _make_dir(path):
@@ -324,6 +323,14 @@ def images_processing(final_map_dict):
 
     if not final_map_dict.get("files"):
         print("No images in directory, skipping.")
+        return
+
+    # Check free disk space before converting each image
+    total, used, free = shutil.disk_usage("/")
+    free = free // (2**30)
+    if free < 5:
+        print(
+            f'Free disk place is only {free}GiB, stopping conversion below 5GiB')
         return
 
     _convert_image(final_map_dict)
