@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import tkinter as tk
 from tkinter import filedialog
@@ -12,9 +13,9 @@ Retrieve the correct (and complete) format list
 Create a dynamic format list based on the source image?
 Filtering non image files before adding them to convert_map
 Create file log ?
-Check diskspace before each image conversion
 Add arguments to automize code
 Add newer formats conversion(pillow_avif, pyheif)
+Rework source to source_dir and source_files
 """
 
 FORMATS_SUPPORTED = [
@@ -72,17 +73,19 @@ MODES = [
 convert_map = {"files": {}}
 
 """
-CONVERT_MAP = {
-    "files":
-    {
-        "photo1.png":
-        {"file_stem": "photo1",  #(only effective if organization func is True )
-         "dir_destination": "C:/Users/User/Pictures/convert/photo"
-         },
-        "photo2.png": {...}
+CONVERT_MAP =
+{'files': 
+    {'photo1.png': 
+        {'file_stem': 'photo1', 'dir_destination': 'C:/Users/user/pictures/convert'}
     },
-    "convert_to": ["JPEG", "PNG", "GIF", "...."],
-    "convert_parent_path": "C:/Users/User/Pictures/convert/photo"
+    {'photo2'.png} : {...},
+ 'organization': 'img', 
+ 'convert_to': ['JPEG'], 
+ 'convert_scope': 'file', 
+ 'source_files': ['photo1.png', 'photo2.png'],
+ 'source_dir': 'C:/Users/rafif/Pictures',
+ 'parent_path': 'C:/Users/rafif/Pictures', 
+ 'convert_parent_path': 'C:/Users/rafif/Pictures/convert'
 }
 """
 
@@ -175,22 +178,23 @@ def ask_select_source(convert_scope):
     root.withdraw()  # Hide Tkinter main window
     scope = convert_scope.get("convert_scope")
     if scope == "file":
-        source = list(filedialog.askopenfilenames(
+        source_files = list(filedialog.askopenfilenames(
             title="Select source file"))
 
-        parent_path = os.path.dirname(source[0])
+        parent_path = os.path.dirname(source_files[0])
         # Keep only file names
-        for n, file in enumerate(source):
-            source[n] = os.path.basename(file)
+        for n, file in enumerate(source_files):
+            source_files[n] = os.path.basename(file)
+        convert_scope["source_files"] = source_files
 
     else:
-        parent_path = filedialog.askdirectory(
+        source_dir = filedialog.askdirectory(
             title="Select source directory")
-        source = parent_path
+        parent_path = source_dir
+        convert_scope["source_dir"] = source_dir
 
     convert_scope["parent_path"] = parent_path
     convert_scope["convert_parent_path"] = f'{convert_scope.get("parent_path")}/convert'
-    convert_scope["source"] = source
     return convert_scope
 
 
@@ -208,16 +212,17 @@ def img_to_convert(select_source):
         img_dict = {"file_stem": file_stem}
         select_source["files"][file] = img_dict
 
-    source = select_source.get("source")
-    if isinstance(source, list):
-        for file in source:
+    source_files = select_source.get("source_files")
+    if source_files:
+        for file in select_source.get("source_files"):
             _fill_map_dict_with_files(file)
-        return select_source
 
     # Look in source path for files only
-    for file in os.listdir(source):
-        if os.path.isfile(os.path.join(source, file)):
-            _fill_map_dict_with_files(file)
+    source_dir = select_source.get("source_dir")
+    if source_dir:
+        for file in os.listdir(source_dir):
+            if os.path.isfile(os.path.join(source_dir, file)):
+                _fill_map_dict_with_files(file)
     return select_source
 
 
@@ -242,7 +247,6 @@ def create_convert_paths(images):
         "convert_parent_path", f'{os.getcwd()}/convert')
     # Directories organization by format or by file
     if images.get("organization") == "img":
-        # Put all file_stem values in a list
         for file in images["files"].values():
             dir_destination = f'{convert_dir}/{file["file_stem"]}'
             _make_dir(dir_destination)
@@ -274,16 +278,16 @@ def images_processing(final_map_dict):
             image = image.convert('RGBA')
         return image
 
-    def _load_image(file, source_path):
+    def _load_image(file, parent_path):
         print(f'CONVERTING {file}...')
         # TODO: avoid this try except block by filtering non image files in convert_map
         try:
             image = Image.open(
-                f'{source_path}/{file}')
+                f'{parent_path}/{file}')
+            return image
         except UnidentifiedImageError as e:
-            print(
-                f'Cannot load {file}, maybe not an image ? skipping... {e}')
-        return image
+            raise UnidentifiedImageError(
+                f'Cannot load {file}, maybe not an image ? skipping... {e}') from e
 
     def _save_image(map_dict, file_values, convert_format, image):
         organization = map_dict.get("organization")
@@ -303,7 +307,11 @@ def images_processing(final_map_dict):
         # save new img with new extension choosen
         for file, file_values in map_dict.get("files").items():
 
-            image = _load_image(file, map_dict.get("parent_path"))
+            try:
+                image = _load_image(file, map_dict.get("parent_path"))
+            except UnidentifiedImageError:
+                continue
+
             file_stem = file_values.get("file_stem")
 
             for convert_format in map_dict.get("convert_to"):
@@ -361,6 +369,7 @@ def main():
         create_convert_paths,
         images_processing
     )
+    print(convert_map)
 
     print("all images done.")
 
