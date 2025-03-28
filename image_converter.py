@@ -1,5 +1,7 @@
 import os
 import sys
+import argparse
+from pathlib import Path
 import shutil
 import tkinter as tk
 from tkinter import filedialog
@@ -13,13 +15,11 @@ Retrieve the correct (and complete) format list
 Create a dynamic format list based on the source image?
 Filtering non image files before adding them to convert_map
 Create file log ?
-Add arguments to automize code
 Add newer formats conversion(pillow_avif, pyheif)
-Rework source to source_dir and source_files
 """
 
 FORMATS_SUPPORTED = [
-    "All",        # Will choose all formats below
+    "ALL",        # Will choose all formats below
     "JPEG",       # Joint Photographic Experts Group (JPEG/JPG)
     "PNG",        # Portable Network Graphics
     "GIF",        # Graphics Interchange Format
@@ -70,61 +70,100 @@ MODES = [
 ]
 '''
 
-convert_map = {"files": {}}
-
 """
 CONVERT_MAP =
-{'files': 
-    {'photo1.png': 
-        {'file_stem': 'photo1', 'dir_destination': 'C:/Users/user/pictures/convert'}
+{'files':
+    {'photo1.png':
+        {'file_stem': 'photo1',
+            'dir_destination': 'C:/Users/user/pictures/convert', 'parent_path': "/home/pictures/"}
     },
     {'photo2'.png} : {...},
- 'organization': 'img', 
- 'convert_to': ['JPEG'], 
- 'convert_scope': 'file', 
+ 'organization': 'img',
+ 'convert_to': ['JPEG'],
+ 'convert_scope': 'file',
  'source_files': ['photo1.png', 'photo2.png'],
  'source_dir': 'C:/Users/rafif/Pictures',
- 'parent_path': 'C:/Users/rafif/Pictures', 
- 'convert_parent_path': 'C:/Users/rafif/Pictures/convert'
+ 'parent_path': 'C:/Users/rafif/Pictures',
+ 'convert_path': 'C:/Users/rafif/Pictures/convert'
 }
 """
 
 
-def ask_organization(dict_map):
+def build_with_args(map_dict):
+    """
+    Returns map_dict with arguments given, fill keys with None if no args
+    """
+    parser = argparse.ArgumentParser("convert map contruction", add_help=False)
+    parser.add_argument('-o', "--organization",
+                        help="Set organization type", choices=["img", "format"], type=str)
+    parser.add_argument('-f', "--convert_to",
+                        help="List to select conversion formats,"
+                        "check help to see supported formats",
+                        choices=FORMATS_SUPPORTED, type=str.upper, nargs='+')
+    parser.add_argument('-s', "--source_files",
+                        help="List of files to convert separated by spaces", nargs='+', type=Path)
+    parser.add_argument(
+        '-d', "--source_dir", help="Path for source directory,"
+        "all images in it will be converted", type=Path)
+    parser.add_argument('-c', "--convert_path",
+                        help="Path where to store converted files", type=Path)
+    parser.add_argument("-h", "--help", action="help",
+                        help=f'Supported formats {FORMATS_SUPPORTED}')
+    args = parser.parse_args()
+
+    if (args.source_dir or args.source_files) and not args.convert_path:
+        parser.print_help()
+        print("\nERROR: '--convert_path' is required if either"
+              " '--source_dir' or '--source_files' is provided.")
+        sys.exit(1)  # Exit the program with an error
+
+    args_dict = {k: v for k, v in vars(args).items() if v is not None}
+    map_dict.update(args_dict)
+    return map_dict
+
+
+def ask_organization(map_dict):
     """
     Ask to the user how he want the organization inside the convert folder
     Returns True if image organization is choosen
     Uses questionary library
     """
-    organization_question = questionary.select(
-        'How do you want your directories organization ? ',
-        choices=[
-            {"name": "By image", "value": "img"},
-            {"name": "By format", "value": "format"}
-        ]
-    ).ask()
+    if not map_dict.get("organization"):
+        organization_question = questionary.select(
+            'How do you want your directories organization ? ',
+            choices=[
+                {"name": "By image", "value": "img"},
+                {"name": "By format", "value": "format"}
+            ]
+        ).ask()
 
-    dict_map["organization"] = organization_question
-    return dict_map
+        map_dict["organization"] = organization_question
+    return map_dict
 
 
-def ask_wanted_formats(organization):  # NEEDED
+def ask_wanted_formats(map_dict):  # NEEDED
     """
     Function that use questionary library to let the user
     choosing in which formats converting the selected images
     Adds "convert_to" in convert_map
     """
 
-    def _confirm_choice():
-        """
-        Ask user to confirm choices
-        Generates selection with questionary library
-        """
-        choice_confirmation = questionary.select(
-            'Confirm choices ?', choices=["yes", "no"]).ask()
-        if choice_confirmation == "yes":
-            return True
-        return False
+    def _update_all_choices(choices):
+        if "ALL" in choices or "all" in choices:
+            print(
+                '!WARNING!: You have selected "All", '
+                'which will converts your images to all 19 formats'
+            )
+
+            # Returns all formats if user confirm choice "All"
+            choices = [
+                format for format in FORMATS_SUPPORTED if format not in {"ALL", "all"}]
+        return choices
+
+    if map_dict.get("convert_to"):
+        map_dict["convert_to"] = _update_all_choices(
+            map_dict.get("convert_to"))
+        return map_dict
 
     while True:
         # Generate checkbox to choose formats from list
@@ -135,98 +174,82 @@ def ask_wanted_formats(organization):  # NEEDED
             print("No formats specified, use spacebar to select")
             continue
 
-        if "All" in formats_choosen:
-            print(
-                '!WARNING!: You have selected "All", '
-                'which will converts your images to all 19 formats'
-            )
+        formats_choosen = _update_all_choices(formats_choosen)
 
-            # Returns all formats if user confirm choice "All"
-            formats_choosen = FORMATS_SUPPORTED.copy()
-            formats_choosen.remove("All")
-
-        print(f' You have selected {formats_choosen}')
-        if not _confirm_choice():
-            continue
-        organization.update({"convert_to": formats_choosen})
-        return organization
+        if questionary.confirm(f"You selected {formats_choosen}. Confirm?").ask():
+            map_dict["convert_to"] = formats_choosen
+            return map_dict
 
 
-def ask_convert_scope(wanted_formats):
+def ask_convert_scope(map_dict):
     """
     Ask to the user if he wants to convert one/several file(s) or a whole dir
     Returns response
     """
-    scope_question = questionary.select(
-        'How to select files',
-        choices=[
-            {"name": "Selecting file by file", "value": "file"},
-            {"name": "A whole directory", "value": "dir"}
-        ]
-    ).ask()
-    wanted_formats["convert_scope"] = scope_question
-    return wanted_formats
+    # Check if user added source_dir or source_files arguments
+    if not any(map_dict.get(key) for key in ("source_files", "source_dir")):
+        scope_question = questionary.select(
+            'How to select files',
+            choices=[
+                {"name": "Selecting file by file", "value": "file"},
+                {"name": "A whole directory", "value": "dir"}
+            ]
+        ).ask()
+        map_dict["convert_scope"] = scope_question
+    return map_dict
 
 
-def ask_select_source(convert_scope):
+def ask_select_source(map_dict):
     """
     Opens a window to select the path where are located all the images to convert
     Returns the corresponding path
     TODO: add source directory in convert_map instead of returning it
     """
-    root = tk.Tk()
-    root.withdraw()  # Hide Tkinter main window
-    scope = convert_scope.get("convert_scope")
-    if scope == "file":
-        source_files = list(filedialog.askopenfilenames(
-            title="Select source file"))
-
-        parent_path = os.path.dirname(source_files[0])
-        # Keep only file names
-        for n, file in enumerate(source_files):
-            source_files[n] = os.path.basename(file)
-        convert_scope["source_files"] = source_files
-
-    else:
-        source_dir = filedialog.askdirectory(
-            title="Select source directory")
-        parent_path = source_dir
-        convert_scope["source_dir"] = source_dir
-
-    convert_scope["parent_path"] = parent_path
-    convert_scope["convert_parent_path"] = f'{convert_scope.get("parent_path")}/convert'
-    return convert_scope
-
-
-def img_to_convert(select_source):
-    """
-    Adds a dict for each file  to convert_map["files]:
-     { "picture1.png": {"file_stem": "picture1"} }
-    Selects only files
-
-    TODO: Remove all non-picture files too
-    """
 
     def _fill_map_dict_with_files(file):
-        file_stem, extension = os.path.splitext(file)
-        img_dict = {"file_stem": file_stem}
-        select_source["files"][file] = img_dict
+        # Check pathlib attributes
+        parent_path = file.parent
+        file_stem = file.stem
+        img_dict = {file.name: {
+            "file_stem": file_stem,
+            "parent_path": parent_path
+        }}
+        map_dict["files"].update(img_dict)
+        if not map_dict.get("convert_path"):
+            map_dict["convert_path"] = f'{parent_path}/convert'
 
-    source_files = select_source.get("source_files")
-    if source_files:
-        for file in select_source.get("source_files"):
-            _fill_map_dict_with_files(file)
+    source_files = {}
+    source_dir = None
+    scope = map_dict.get("convert_scope")
+    if scope:
+        root = tk.Tk()
+        root.withdraw()  # Hide Tkinter main window
+        if scope == "file":
+            source_files = list(filedialog.askopenfilenames(
+                title="Select source file"))
 
-    # Look in source path for files only
-    source_dir = select_source.get("source_dir")
+        elif scope == "dir":
+            source_dir = filedialog.askdirectory(
+                title="Select source directory")
+
+    # Fill dict with source_files
+    for file in source_files or map_dict.get("source_files", {}):
+        _fill_map_dict_with_files(Path(file))
+
+    # source_files not needed anymore
+    map_dict.pop('source_files', None)
+
+    # Fill dict with files inside source_dir
+    source_dir = source_dir or map_dict.get("source_dir")
     if source_dir:
-        for file in os.listdir(source_dir):
-            if os.path.isfile(os.path.join(source_dir, file)):
-                _fill_map_dict_with_files(file)
-    return select_source
+        # filter non-files in Path
+        for file in filter(lambda file: file.is_file(), Path(source_dir).iterdir()):
+            _fill_map_dict_with_files(Path(file))
+
+    return map_dict
 
 
-def create_convert_paths(images):
+def create_convert_paths(map_dict):
     """
     If organization is img:
         Adds destination path for each file with form Path/convert/file_stem
@@ -240,23 +263,22 @@ def create_convert_paths(images):
         """
         Creates directory with a path arg
         """
-        if not os.path.exists(path):
-            os.makedirs(path)
+        if not Path.exists(path):
+            Path.mkdir(path, parents=True)
 
-    convert_dir = images.get(
-        "convert_parent_path", f'{os.getcwd()}/convert')
+    convert_path = map_dict.get(
+        "convert_path", f'{Path.cwd()}/convert')
     # Directories organization by format or by file
-    if images.get("organization") == "img":
-        for file in images["files"].values():
-            dir_destination = f'{convert_dir}/{file["file_stem"]}'
-            _make_dir(dir_destination)
+    if map_dict.get("organization") == "img":
+        for file in map_dict["files"].values():
+            dir_destination = f'{convert_path}/{file["file_stem"]}'
+            _make_dir(Path(dir_destination))
             file["dir_destination"] = dir_destination
     else:
-        formats_dirs = images.get("convert_to")
-        for format_dir in formats_dirs:
-            dir_destination = f'{convert_dir}/{format_dir}'
-            _make_dir(dir_destination)
-    return images
+        for format_dir in map_dict.get("convert_to"):
+            dir_destination = f'{convert_path}/{format_dir}'
+            _make_dir(Path(dir_destination))
+    return map_dict
 
 
 def images_processing(final_map_dict):
@@ -291,7 +313,7 @@ def images_processing(final_map_dict):
 
     def _save_image(map_dict, file_values, convert_format, image):
         organization = map_dict.get("organization")
-        convert_path = map_dict.get("convert_parent_path")
+        convert_path = map_dict.get("convert_path")
         dir_destination = file_values.get("dir_destination")
         file_stem = file_values.get("file_stem")
 
@@ -308,7 +330,7 @@ def images_processing(final_map_dict):
         for file, file_values in map_dict.get("files").items():
 
             try:
-                image = _load_image(file, map_dict.get("parent_path"))
+                image = _load_image(file, file_values.get("parent_path"))
             except UnidentifiedImageError:
                 continue
 
@@ -359,17 +381,18 @@ def main():
             data = func(data)
         return data
 
+    convert_map = {"files": {}}
+
     pipeline(
         convert_map,
+        build_with_args,
         ask_organization,
         ask_wanted_formats,
         ask_convert_scope,
         ask_select_source,
-        img_to_convert,
         create_convert_paths,
         images_processing
     )
-    print(convert_map)
 
     print("all images done.")
 
