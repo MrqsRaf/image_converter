@@ -3,13 +3,14 @@ Python code using Pillow to convert images to other formats
 
 ```
 FORMATS_SUPPORTED = [
-    "All",        # Will choose all formats below
+    "ALL",        # Will choose all formats below
     "JPEG",       # Joint Photographic Experts Group (JPEG/JPG)
     "PNG",        # Portable Network Graphics
     "GIF",        # Graphics Interchange Format
     "PDF",        # Portable Document Format
     "TIFF",       # Tagged Image img Format
     "WEBP",       # WebP Image Format
+    "AVIF",
     "JPEG2000",   # JPEG 2000 (JP2, J2K, JPC, JPF, JPG2)
     "BMP",        # Bitmap
     "ICO",        # Icon Format

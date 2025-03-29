@@ -3,6 +3,7 @@ import sys
 import argparse
 from pathlib import Path
 import shutil
+import pillow_avif
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, UnidentifiedImageError
@@ -26,6 +27,7 @@ FORMATS_SUPPORTED = [
     "PDF",        # Portable Document Format
     "TIFF",       # Tagged Image img Format
     "WEBP",       # WebP Image Format
+    "AVIF",
     "JPEG2000",   # JPEG 2000 (JP2, J2K, JPC, JPF, JPG2)
     "BMP",        # Bitmap
     "ICO",        # Icon Format
