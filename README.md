@@ -97,6 +97,8 @@ A window will open. Select the desired files or directory.
 
 # CLI USage
 
+Each arguments can be called separately, skipping corresponding UI question
+`--convert_path` argument is a dependency to `--source_files` or/and `--source_dir`
 
 ### Available Options
 
@@ -110,20 +112,22 @@ A window will open. Select the desired files or directory.
   - Possible values: `JPEG`, `PNG`, `GIF`, `WEBP`, `AVIF`, `ALL`, etc. (Check `--help`)  
 
 - `--source_files`, `-s`  
-  Specifies one or more source files to convert. (space-separated)
+  Specifies one or more source files to convert. (space-separated)  
+  Needs `--convert_path`
 
 - `--source_dir`, `-d`  
-  Specifies a directory containing the files to convert.
+  Specifies a directory containing the files to convert.  
+  Needs `--convert_path`
 
 - `--convert_path`, `-c`  
   Specifies the directory where converted files will be saved.  
 
 ### Example usage:
 ```
-python image_converter.py --source_files "/path/to/dir/photo1.png" (-s)
-                          --source_dir "/path/to/dir/" (-d)
-                          --convert_path "/path/to/dir/convert" (-c)
-                          --organization img (-o)
-                          --convert_to jpeg (-f)
+python image_converter.py --source_files "/path/to/dir/photo1.png" (-s)  
+                          --source_dir "/path/to/dir/" (-d)  
+                          --convert_path "/path/to/dir/convert" (-c)  
+                          --organization img (-o)  
+                          --convert_to jpeg (-f)  
 ```
 
