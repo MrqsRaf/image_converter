@@ -1,4 +1,3 @@
-import os
 import sys
 import argparse
 from pathlib import Path
@@ -12,9 +11,6 @@ import questionary
 """
 TODO:
 Multithreading to speed up conversion?
-Retrieve the correct (and complete) format list
-Create a dynamic format list based on the source image?
-Filtering non image files before adding them to convert_map
 Create file log ?
 Add newer formats conversion(pillow_avif, pyheif)
 """
@@ -46,31 +42,6 @@ FORMATS_SUPPORTED = [
     "TGA",        # Truevision Targa Image
     "MSP",        # MSP Image Format
 ]
-
-'''
-MODES = [
-    "1",
-    "CMYK",
-    "F",
-    "HSV",
-    "I",
-    "I;16",
-    "I;16B",
-    "I;16L",
-    "I;16N",
-    "L",
-    "LA",
-    "La",
-    "LAB",
-    "P",
-    "PA",
-    "RGB",
-    "RGBA",
-    "RGBa",
-    "RGBX",
-    "YCbCr",
-]
-'''
 
 """
 CONVERT_MAP =
@@ -205,7 +176,6 @@ def ask_select_source(map_dict):
     """
     Opens a window to select the path where are located all the images to convert
     Returns the corresponding path
-    TODO: add source directory in convert_map instead of returning it
     """
 
     def _fill_map_dict_with_files(file):
@@ -260,7 +230,6 @@ def create_convert_paths(map_dict):
     else:
         Adds desination parent path with form Path/convert/ to convert_map
     """
-
     def _make_dir(path):
         """
         Creates directory with a path arg
@@ -288,23 +257,29 @@ def images_processing(final_map_dict):
     Converts all images from mapping dict
     """
 
-    def _convert_img_mode(file, image):
+    def _convert_img_mode(file, image, convert_format, original_mode):
         '''
         Convert RGBA/RGB mode to maximize chances to convert'
         '''
-        mode = image.mode
+        if convert_format in ["XBM", "MSP"]:
+            image = image.convert("1")
+        elif convert_format == "BLP":
+            image = image.convert("P")
+        else:
+            image = image.convert(original_mode)
+            if original_mode == "RGBA":
+                image = image.convert("RGB")
+            elif original_mode == "RGB":
+                image = image.convert("RGBA")
+
         print(
-            f' Cannot convert {file} because it is in {mode}, '
-            f'converting to RGB/RGBA format to maximize chances')
-        if mode == 'RGBA':
-            image = image.convert('RGB')
-        elif image.mode == 'RGB':
-            image = image.convert('RGBA')
+            f'Cannot convert {file} to {convert_format} because it is in {original_mode}, '
+            f'converting to {image.mode} format to maximize chances'
+        )
         return image
 
     def _load_image(file, parent_path):
         print(f'CONVERTING {file}...')
-        # TODO: avoid this try except block by filtering non image files in convert_map
         try:
             image = Image.open(
                 f'{parent_path}/{file}')
@@ -333,6 +308,7 @@ def images_processing(final_map_dict):
 
             try:
                 image = _load_image(file, file_values.get("parent_path"))
+                original_mode = image.mode
             except UnidentifiedImageError:
                 continue
 
@@ -344,7 +320,8 @@ def images_processing(final_map_dict):
                     print(f"{file_stem}.{convert_format} done.")
                 except (ValueError, OSError):
                     try:
-                        image = _convert_img_mode(file, image)
+                        image = _convert_img_mode(
+                            file, image, convert_format, original_mode)
                         _save_image(map_dict, file_values,
                                     convert_format, image)
                         print(f"{file_stem}.{convert_format} done.")
@@ -372,11 +349,6 @@ def main():
     """
     Calls all functions to fill convert_map,
     then convert all images in mapping dict with all formats in same dict
-    TODO:
-        convert_map can break if functions are called in another sequence
-        Will be better if functions that returns nothing are directly called by others
-        CONVERT_MAP is not a constant variable, change naming or way it works
-
     """
     def pipeline(data, *funcs):
         for func in funcs:
