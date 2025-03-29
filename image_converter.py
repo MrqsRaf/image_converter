@@ -195,6 +195,7 @@ def ask_select_source(map_dict):
     scope = map_dict.get("convert_scope")
     if scope:
         root = tk.Tk()
+        root.update_idletasks()  # Refresh tkinter to prevent eventual bugs
         root.withdraw()  # Hide Tkinter main window
         if scope == "file":
             source_files = list(filedialog.askopenfilenames(
@@ -356,7 +357,6 @@ def main():
         return data
 
     convert_map = {"files": {}}
-
     pipeline(
         convert_map,
         build_with_args,
