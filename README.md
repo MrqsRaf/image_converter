@@ -32,7 +32,7 @@ FORMATS_SUPPORTED = [
 
 ``` 
 
-## Install
+# Install
 
 tested with
 
@@ -46,14 +46,14 @@ Requires Questionary and Pillow libraries installed:
 pip install -r requirements.txt
 ```
 
-## Using
+# UI USage
 
 Run the script `image_converter.py`
 ```
 python image_converter.py
 ```
 
-# Setup choices
+## Setup choices
 
 The first question asks how you want to organize your converted images  
 - By image: Creates a directory per image and places all the desired converted formats in it
@@ -94,4 +94,36 @@ Confirm your choices, select no to go back
 ```
 
 A window will open. Select the desired files or directory.
+
+# CLI USage
+
+
+### Available Options
+
+- `--organization`, `-o`  
+  Defines how converted files are organized.  
+  - `img` → Organizes files by image.  
+  - `format` → Organizes files by format.  
+
+- `--convert_to`, `-f`  
+  Defines the output formats.  
+  - Possible values: `JPEG`, `PNG`, `GIF`, `WEBP`, `AVIF`, `ALL`, etc. (Check `--help`)  
+
+- `--source_files`, `-s`  
+  Specifies one or more source files to convert. (space-separated)
+
+- `--source_dir`, `-d`  
+  Specifies a directory containing the files to convert.
+
+- `--convert_path`, `-c`  
+  Specifies the directory where converted files will be saved.  
+
+### Example usage:
+```
+python image_converter.py --source_files "/path/to/dir/photo1.png" (-s)
+                          --source_dir "/path/to/dir/" (-d)
+                          --convert_path "/path/to/dir/convert" (-c)
+                          --organization img (-o)
+                          --convert_to jpeg (-f)
+```
 
